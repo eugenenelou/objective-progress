@@ -1,8 +1,10 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <meta charset="utf-8">
 </head>
+
 <body>
   <div id="root"></div>
 
@@ -11,6 +13,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/6.26.0/babel.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/redux/4.0.0/redux.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-redux/5.0.7/react-redux.js"></script>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 
   <script type="text/babel">
     const OBJECTIVES = [
@@ -22,11 +25,78 @@
     ];
     const TODAY = "2018-02-20";
 
+    const dateDiffInDays = (date1, date2) => {
+      const millisecondsByDay = 86400000;
+      return (date2 - date1) / millisecondsByDay;
+    }
 
-    // PUT YOUR CODE HERE AND MODIFY App
+    class Curve extends React.Component {
+      componentDidMount() {
+        const {start, current, target, start_date, end_date} = this.props.objective;
+        const trace = {
+          x: [new Date(start_date), new Date(TODAY), new Date(end_date)],
+          y: [start, current, target],
+          type: 'scatter'
+        }
+        const layout = {
+          yaxis: {
+            rangemode: 'tozero',
+            showline: true,
+            zeroline: true
+          },
+          autosize: false,
+          width: 500,
+          height: 300,
+          margin: {
+            l: 40,
+            r: 40,
+            b: 40,
+            t: 40,
+          },
+        };
 
-    const App = () =>
-      <div>CHALLENGE JAVELO</div>
+        Plotly.newPlot(`curve${this.props.objective.id}`, [trace], layout);
+      }
+      render() {
+        const style = {
+          width: '512',
+          height: '256'
+        };
+        return <div id={`curve${this.props.objective.id}`} style={style}/>;
+      }
+    };
+
+    const Objective = ({ objective }) => {
+      const containerStyle = {
+        display: 'flex',
+        alignItems: 'center',
+        marginBottom: '16px'
+      };
+      const titleStyle = {
+        width: '200px'
+      };
+      return (
+        <div style={containerStyle}>
+           <p style={titleStyle}>{objective.title}</p>
+           <Curve objective={objective} />
+        </div>
+      );
+    };
+
+    const App = () => {
+      const reachedObjectivesCount = OBJECTIVES.filter(({ current, target }) => current >= target).length;
+      return (
+        <div>
+          <h1>CHALLENGE JAVELO</h1>
+          <p>
+            {reachedObjectivesCount} objectives have their current value over their target
+          </p>
+          <div>
+            {OBJECTIVES.map(objective => <Objective key={objective.id} objective={objective} />)}
+          </div>
+        </div>
+      );
+    };
 
 
     ReactDOM.render(
@@ -35,4 +105,5 @@
     );
   </script>
 </body>
+
 </html>
