@@ -28,7 +28,23 @@
     const dateDiffInDays = (date1, date2) => {
       const millisecondsByDay = 86400000;
       return (date2 - date1) / millisecondsByDay;
-    }
+    };
+
+    const getObjectivesWithChildren = objectives => {
+      // return the objectives in a nested tree by adding a children key in the objectives to store the children objectives in an array
+      const objectivesWithChildren = objectives.map(objective => ({...objective, children: []}));
+      
+      objectivesWithChildren.reduce((acc, objective) => {
+          if (objective.parent_id) {
+            acc.find(({ id }) => objective.parent_id === id).children.push(objective);
+          }
+          return acc;
+        }
+        , objectivesWithChildren);
+
+      const root = objectivesWithChildren.find(({parent_id}) => !parent_id);
+      return root;
+    };
 
     class Curve extends React.Component {
       componentDidMount() {
@@ -45,8 +61,8 @@
             zeroline: true
           },
           autosize: false,
-          width: 500,
-          height: 300,
+          width: 300,
+          height: 150,
           margin: {
             l: 40,
             r: 40,
@@ -66,25 +82,49 @@
       }
     };
 
-    const Objective = ({ objective }) => {
-      const containerStyle = {
-        display: 'flex',
-        alignItems: 'center',
-        marginBottom: '16px'
-      };
-      const titleStyle = {
-        width: '200px'
-      };
-      return (
-        <div style={containerStyle}>
-           <p style={titleStyle}>{objective.title}</p>
-           <Curve objective={objective} />
-        </div>
-      );
+    class Objective extends React.Component {
+      state = { expanded: false};
+      
+      expand = () => this.setState({expanded : !this.state.expanded});
+
+      render() {
+        const { objective } = this.props;
+        const containerStyle = {
+          display: 'flex',
+          flexDirection: 'column',
+        };
+        const objectiveStyle = {
+          display: 'flex',
+          alignItems: 'center'
+        };
+        const titleStyle = {
+          width: '150px',
+          height: '75px',
+          borderRadius: '3px',
+          border: 'none',
+          flexShrink: 0
+        };
+        const childrenContainerStyle = {
+          paddingLeft: '100px',
+        };
+        return (
+          <div style={containerStyle}>
+            <div style={objectiveStyle}>
+              <button onClick={this.expand} style={titleStyle}>{objective.title}</button>
+              {this.state.expanded && <Curve objective={objective} />}
+            </div>
+            {this.state.expanded && 
+              <div style={childrenContainerStyle}>
+                {objective.children.map(childObjective => <Objective objective={childObjective} />)}
+              </div>}
+          </div>
+        );
+      }
     };
 
     const App = () => {
       const reachedObjectivesCount = OBJECTIVES.filter(({ current, target }) => current >= target).length;
+      const objectivesTree = getObjectivesWithChildren(OBJECTIVES);
       return (
         <div>
           <h1>CHALLENGE JAVELO</h1>
@@ -92,7 +132,7 @@
             {reachedObjectivesCount} objectives have their current value over their target
           </p>
           <div>
-            {OBJECTIVES.map(objective => <Objective key={objective.id} objective={objective} />)}
+            <Objective key={objectivesTree.id} objective={objectivesTree} />
           </div>
         </div>
       );
