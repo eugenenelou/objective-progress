@@ -33,7 +33,7 @@
     const getObjectivesWithChildren = objectives => {
       // return the objectives in a nested tree by adding a children key in the objectives to store the children objectives in an array
       const objectivesWithChildren = objectives.map(objective => ({...objective, children: []}));
-      
+
       objectivesWithChildren.reduce((acc, objective) => {
           if (objective.parent_id) {
             acc.find(({ id }) => objective.parent_id === id).children.push(objective);
@@ -48,13 +48,25 @@
 
     class Curve extends React.Component {
       componentDidMount() {
-        const {start, current, target, start_date, end_date} = this.props.objective;
+        Plotly.newPlot(this.getPlotId(), [this.getTrace()], this.getLayout());
+      }
+
+      componentDidUpdate() {
+        Plotly.react(this.getPlotId(), [this.getTrace()], this.getLayout());
+      }
+
+      getPlotId = () => `curve${this.props.objective.id}`;
+      getTrace = () => {
+        const {start, target, start_date, end_date} = this.props.objective;
         const trace = {
-          x: [new Date(start_date), new Date(TODAY), new Date(end_date)],
-          y: [start, current, target],
+          x: [new Date(start_date), new Date(TODAY), new Date(end_date)],
+          y: [start, this.props.current, target],
           type: 'scatter'
-        }
-        const layout = {
+        };
+        return trace;
+      };
+      getLayout = () => (
+        {
           yaxis: {
             rangemode: 'tozero',
             showline: true,
@@ -69,13 +81,12 @@
             b: 40,
             t: 40,
           },
-        };
+        }
+      );
 
-        Plotly.newPlot(`curve${this.props.objective.id}`, [trace], layout);
-      }
       render() {
         const style = {
-          width: '512',
+          width: '512',
           height: '256'
         };
         return <div id={`curve${this.props.objective.id}`} style={style}/>;
@@ -83,9 +94,15 @@
     };
 
     class Objective extends React.Component {
-      state = { expanded: false};
-      
-      expand = () => this.setState({expanded : !this.state.expanded});
+      state = { expanded: true};
+
+      static getDerivedStateFromProps(props, state) {
+        if (state.current !== undefined) return state;
+        return {...state, current: props.objective.current};
+      }
+
+      expand = () => this.setState({expanded: !this.state.expanded});
+      increment = () => this.setState({current: this.state.current + 1});
 
       render() {
         const { objective } = this.props;
@@ -99,7 +116,7 @@
         };
         const titleStyle = {
           width: '150px',
-          height: '75px',
+          height: '75px',
           borderRadius: '3px',
           border: 'none',
           flexShrink: 0
@@ -110,12 +127,12 @@
         return (
           <div style={containerStyle}>
             <div style={objectiveStyle}>
-              <button onClick={this.expand} style={titleStyle}>{objective.title}</button>
-              {this.state.expanded && <Curve objective={objective} />}
+              <button onClick={this.increment} style={titleStyle}>{objective.title}</button>
+              {this.state.expanded && <Curve objective={objective} current={this.state.current} />}
             </div>
-            {this.state.expanded && 
+            {this.state.expanded &&
               <div style={childrenContainerStyle}>
-                {objective.children.map(childObjective => <Objective objective={childObjective} />)}
+                {objective.children.map(childObjective => <Objective key={childObjective.id} objective={childObjective} />)}
               </div>}
           </div>
         );
