@@ -16,6 +16,8 @@
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 
   <script type="text/babel">
+    // CONSTANTS
+
     const OBJECTIVES = [
       { "id": 1, "title": "First objective", "start": 0, "target": 50, "current": 20, "start_date": "2018-01-05", "end_date": "2018-03-05" },
       { "id": 2, "title": "Second objective", "start": 10, "target": 42, "current": 20, "start_date": "2018-01-25", "end_date": "2018-03-30", "parent_id": 1 },
@@ -24,6 +26,8 @@
       { "id": 5, "title": "Void objective", "start": 10, "target": 42, "current": -20, "start_date": "2018-01-25", "end_date": "2018-03-30", "parent_id": 2 }
     ];
     const TODAY = "2018-02-20";
+
+    // HELPERS
 
     const dateDiffInDays = (date1, date2) => {
       const millisecondsByDay = 86400000;
@@ -36,15 +40,16 @@
 
       objectivesWithChildren.reduce((acc, objective) => {
           if (objective.parent_id) {
-            acc.find(({ id }) => objective.parent_id === id).children.push(objective);
+            acc.find(({ id }) => objective.parent_id === id).children.push(objective.id);
           }
           return acc;
         }
         , objectivesWithChildren);
 
-      const root = objectivesWithChildren.find(({parent_id}) => !parent_id);
-      return root;
+      return objectivesWithChildren;
     };
+
+    // COMPONENTS
 
     class Curve extends React.Component {
       componentDidMount() {
@@ -57,10 +62,10 @@
 
       getPlotId = () => `curve${this.props.objective.id}`;
       getTrace = () => {
-        const {start, target, start_date, end_date} = this.props.objective;
+        const {start, current, target, start_date, end_date} = this.props.objective;
         const trace = {
           x: [new Date(start_date), new Date(TODAY), new Date(end_date)],
-          y: [start, this.props.current, target],
+          y: [start, current, target],
           type: 'scatter'
         };
         return trace;
@@ -94,15 +99,7 @@
     };
 
     class Objective extends React.Component {
-      state = { expanded: true};
-
-      static getDerivedStateFromProps(props, state) {
-        if (state.current !== undefined) return state;
-        return {...state, current: props.objective.current};
-      }
-
-      expand = () => this.setState({expanded: !this.state.expanded});
-      increment = () => this.setState({current: this.state.current + 1});
+      toggleExpand = () => this.props.toggleExpand(this.props.objective.id);
 
       render() {
         const { objective } = this.props;
@@ -127,37 +124,98 @@
         return (
           <div style={containerStyle}>
             <div style={objectiveStyle}>
-              <button onClick={this.increment} style={titleStyle}>{objective.title}</button>
-              {this.state.expanded && <Curve objective={objective} current={this.state.current} />}
+              <button onClick={this.toggleExpand} style={titleStyle}>{objective.title}</button>
+              {objective.expanded && <Curve objective={objective} />}
             </div>
-            {this.state.expanded &&
+            {objective.expanded &&
               <div style={childrenContainerStyle}>
-                {objective.children.map(childObjective => <Objective key={childObjective.id} objective={childObjective} />)}
+                {objective.children.map(childId => <ConnectedObjective key={childId} id={childId} />)}
               </div>}
           </div>
         );
       }
     };
 
-    const App = () => {
-      const reachedObjectivesCount = OBJECTIVES.filter(({ current, target }) => current >= target).length;
-      const objectivesTree = getObjectivesWithChildren(OBJECTIVES);
+    const objectiveMapStateToProps = state => ({
+      objectives: objectivesSelector(state),
+    });
+    const objectiveDispatchToProps = dispatch => ({
+      toggleExpand: id => dispatch({type: 'TOGGLE_EXPAND', id})
+    });
+    const objectiveMergeProps = ({ objectives }, { toggleExpand }, { id }) => ({
+      objective: objectives[id],
+      toggleExpand
+    });
+    const ConnectedObjective = ReactRedux.connect(objectiveMapStateToProps, objectiveDispatchToProps, objectiveMergeProps)(Objective);
+
+    const App = props => {
+      const { rootId, randomIncrement, reachedObjectivesCount } = props;
+      const incrementStyle = {
+        fontWeight: 700,
+        fontSize: '32px',
+        borderRadius: '50%',
+        border: 'none'
+      };
       return (
         <div>
-          <h1>CHALLENGE JAVELO</h1>
+          <h1>JAVELO CHALLENGE</h1>
+          <button onClick={randomIncrement} style={incrementStyle}>+</button>
           <p>
             {reachedObjectivesCount} objectives have their current value over their target
           </p>
           <div>
-            <Objective key={objectivesTree.id} objective={objectivesTree} />
+            <ConnectedObjective key={rootId} id={rootId} />
           </div>
         </div>
       );
     };
 
+    const appMapStateToProps = state => ({
+      rootId: rootIdSelector(state),
+      reachedObjectivesCount: reachedObjectivesCountSelector(state)
+    });
+    const appDispatchToProps = dispatch => ({
+      randomIncrement: () => dispatch({type: 'RANDOMLY_INCREMENT_OBJECTIVE_CURRENT'})
+    });
+    const ConnectedApp = ReactRedux.connect(appMapStateToProps, appDispatchToProps)(App);
+
+    // REDUCER
+
+    const objectives = getObjectivesWithChildren(OBJECTIVES).reduce((acc, objective) => ({...acc, [objective.id]: {...objective, expanded: false }}), {});
+    const rootId = OBJECTIVES.find(({parent_id}) => !parent_id).id;
+    const initialState = {rootId, objectives};
+
+    const objectiveReducer = (state = initialState, action) => {
+      switch(action.type) {
+        case 'RANDOMLY_INCREMENT_OBJECTIVE_CURRENT':
+          const objectiveIds = Object.keys(state.objectives);
+          const randomObjectiveId = objectiveIds[Math.floor(Math.random()*objectiveIds.length)];
+          const randomObjective = state.objectives[randomObjectiveId];
+          return {...state, objectives: {...state.objectives, [randomObjectiveId]: {...randomObjective, current: randomObjective.current + 1}}};
+        case 'TOGGLE_EXPAND':
+          const objective = state.objectives[action.id];
+          if (!objective) return state;
+          return {...state, objectives: {...state.objectives, [action.id]: {...objective, expanded: !objective.expanded}}};
+        default:
+          return state;
+      }
+    }
+
+    // SELECTORS
+
+    const objectivesSelector = state => state.objectives;
+    const objectiveSelector = (state, id) => objectivesSelector(state)[id];
+    const rootIdSelector = ({ rootId }) => rootId;
+    const reachedObjectivesSelector = state => Object.values(objectivesSelector(state)).filter(({ current, target }) => current >= target);
+    const reachedObjectivesCountSelector = state => reachedObjectivesSelector(state).length;
+
+    // APP
+    const store = Redux.createStore(objectiveReducer, window.__REDUX_DEVTOOLS_EXTENSION__ && window.__REDUX_DEVTOOLS_EXTENSION__());
 
     ReactDOM.render(
-      <App/>,
+      <ReactRedux.Provider store={store}>
+        <ConnectedApp />
+      </ReactRedux.Provider>,
       document.getElementById('root')
     );
   </script>
