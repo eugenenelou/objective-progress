@@ -1,8 +1,32 @@
 {
   "objectives": [
-    { "id": 1, "start": 0, "target": 50, "start_date": "2018-01-05", "end_date": "2018-03-05", "parent_id": 4, "coef": 1 },
-    { "id": 2, "start": 10, "target": 42, "start_date": "2018-01-25", "end_date": "2018-03-30", "parent_id": 4, "coef": 1 },
-    { "id": 3, "start": 20, "target": 0, "start_date": "2018-02-05", "end_date": "2018-03-05", "parent_id": 5, "coef": 4 },
+    {
+      "id": 1,
+      "start": 0,
+      "target": 50,
+      "start_date": "2018-01-05",
+      "end_date": "2018-03-05",
+      "parent_id": 4,
+      "coef": 1
+    },
+    {
+      "id": 2,
+      "start": 10,
+      "target": 42,
+      "start_date": "2018-01-25",
+      "end_date": "2018-03-30",
+      "parent_id": 4,
+      "coef": 1
+    },
+    {
+      "id": 3,
+      "start": 20,
+      "target": 0,
+      "start_date": "2018-02-05",
+      "end_date": "2018-03-05",
+      "parent_id": 5,
+      "coef": 4
+    },
     { "id": 4, "parent_id": 5, "coef": 1 },
     { "id": 5, "parent_id": 6, "coef": 2 },
     { "id": 6 }

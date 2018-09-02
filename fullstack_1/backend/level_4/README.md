@@ -1,4 +1,3 @@
-
 # Level 4 : Top level objectives
 
 In order to be aware of the global accomplishment of objectives, they can be linked to a `parent` objective.
